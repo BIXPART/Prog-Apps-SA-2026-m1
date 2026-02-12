@@ -1,72 +1,95 @@
-import { router,useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Alert, StyleSheet, TextInput, View } from 'react-native';
 import Botao from '../componentes/Botao';
 
 export default function Index() {
 
 
-    const [Cods, SetCods] = useState([{ cod: '123', uso: true,tipo: "cod" }, { cod: '321', uso: true,tipo: "cod" }])
-    const [Matrículas, SetMatriculas] = useState([{ cod: '54321', uso: true,tipo: "matricula" }])
-    const [SenhasADM, SetSenhasADM] = useState([{ cod: '123', uso: true,tipo: "adm" }, { cod: '321', uso: true,tipo: "adm" }])
+    const [Cods] = useState([{ cod: '123', uso: true, tipo: "cod" }, { cod: '321', uso: true, tipo: "cod" }])
+    useEffect(() => {
+        async function inicializar() {
+            const dados = await AsyncStorage.getItem('@Cods');
+
+            if (!dados) {
+                await AsyncStorage.setItem('@Cods', JSON.stringify(Cods));
+            }
+        }
+
+        inicializar();
+    }, []);
+
+    const [Matrículas] = useState([{ cod: '54321', uso: true, tipo: "matricula" }])
+    useEffect(() => {
+        async function inicializar() {
+            const dados = await AsyncStorage.getItem('@Matrículas');
+
+            if (!dados) {
+                await AsyncStorage.setItem('@Matrículas', JSON.stringify(Matrículas));
+            }
+        }
+
+        inicializar();
+    }, []);
+
+    const [SenhasADM] = useState([{ cod: '123', uso: true, tipo: "adm" }, { cod: '321', uso: true, tipo: "adm" }])
+    useEffect(() => {
+        async function inicializar() {
+            const dados = await AsyncStorage.getItem('@SenhasADM');
+
+            if (!dados) {
+                await AsyncStorage.setItem('@SenhasADM', JSON.stringify(SenhasADM));
+            }
+        }
+
+        inicializar();
+    }, []);
+
+
 
     const [CampoAl, SetCampoAl] = useState('')
     const [CampoADM, SetCampoADM] = useState('')
 
-    const [ViwerADM, SetViwerADM] = useState('none')
-    const [ViwerEST, SetViwerEST] = useState('block')
+    const [ViwerADM, SetViwerADM] = useState<'none' | 'flex'>('none')
+    const [ViwerEST, SetViwerEST] = useState<'none' | 'flex'>('flex')
 
 
 
-    function VerificarM_C() {
-        const filtro = Matrículas.filter(mat => mat.cod === CampoAl);
-        const filtro2 = Cods.filter(cod => cod.cod === CampoAl);
+    async function VerificarM_C() {
+        const filtroMat = Matrículas.find(mat => mat.cod === CampoAl);
+        const filtroCod = Cods.find(cod => cod.cod === CampoAl);
 
-        if (filtro.length > 0) {
-            router.push({
-                pathname: "/Home",
-                params: {
-                    Sessao: JSON.stringify({
-                        tipo: "matricula",
-                        cod: filtro[0].cod,
-                        uso: filtro[0].uso
-                    })
-                }
-            });
-            return;
-        }
+        const usuario = filtroMat || filtroCod;
 
-        if (filtro2.length > 0) {
-            router.push({
-                pathname: "/UsarTicket",
-                params: {
-                    Sessao: JSON.stringify({
-                        tipo: "codigo",
-                        cod: filtro2[0].cod,
-                        uso: filtro2[0].uso
-                    })
-                }
-            });
+        if (usuario) {
+            await AsyncStorage.setItem('Sessao', JSON.stringify(usuario));
+            router.navigate('/Home');
             return;
         }
 
         Alert.alert("Matrícula ou código inválido");
     }
 
-    function VerificarADM() {
-        let filtro = SenhasADM.filter(sen => sen.cod == CampoADM)
-        if (filtro.length > 0) {
-            Alert.alert("bem vindo ADM")
+    async function VerificarADM() {
+        const filtro = SenhasADM.find(sen => sen.cod === CampoADM);
+
+        if (filtro) {
+            await AsyncStorage.setItem('Sessao', JSON.stringify(filtro));
+            router.navigate('/Home');
+            return;
         }
+
+        Alert.alert("Senha inválida");
     }
 
     function trocar() {
-        if (ViwerADM == 'none') {
+        if (ViwerADM === 'none') {
             SetViwerEST('none')
-            SetViwerADM('block')
+            SetViwerADM('flex')
         } else {
             SetViwerADM('none')
-            SetViwerEST('block')
+            SetViwerEST('flex')
         }
     }
 
