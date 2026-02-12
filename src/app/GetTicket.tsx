@@ -1,17 +1,37 @@
-import { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 import Botao from '../componentes/Botao';
-import { router, useLocalSearchParams } from 'expo-router';
+
+type SessaoType = {
+    cod: string;
+    uso: boolean;
+    tipo: string;
+}
 
 export default function GetTicket() {
 
-    const params = useLocalSearchParams();
+    const [SessaoObj, SetSessaoObj] = useState<SessaoType | null>(null);
 
-    const rawSessao = Array.isArray(params.Sessao)
-        ? params.Sessao[0]
-        : params.Sessao;
+    useEffect(() => {
+        async function Receber_dados() {
+            const Sessao = await AsyncStorage.getItem("SessaoAtual")
+            if (Sessao) {
+                const SessaoParse = JSON.parse(Sessao);
+                SetSessaoObj(SessaoParse);
+            }
+        } Receber_dados();
+    }, [])
 
-    const SessaoObj = rawSessao ? JSON.parse(rawSessao) : null;
+    useEffect(() => {
+        async function Atualizar_Sessao() {
+            if (SessaoObj) {
+                const SessaoString = JSON.stringify(SessaoObj);
+                await AsyncStorage.setItem("Sessao", SessaoString);
+            }
+        } Atualizar_Sessao();
+    })
 
     const [Horario, SetHorario] = useState("");
 
@@ -46,9 +66,13 @@ export default function GetTicket() {
             return;
         }
 
-        if (!SessaoObj.uso) {
+        if (!SessaoObj?.cod) {
             (true);
-            Alert.alert("Ticket Recebido");
+            SetSessaoObj({
+                cod: SessaoObj?.cod || "Desconecido",
+                uso: true,
+                tipo: SessaoObj?.tipo || "matricula",
+            })
         } else {
             Alert.alert("Ticket já recebido");
         }
@@ -56,10 +80,12 @@ export default function GetTicket() {
 
     return (
         <View style={styles.container}>
-            <Text>Olá {SessaoObj.cod}</Text>
-            <Text>Status ticket: {SessaoObj.uso ? "Sim" : "Não"}</Text>
+            <Text style={{ fontSize: 50 }}>Pegar Ticket</Text>
+            <Text>Sessão atual: {SessaoObj?.cod}</Text>
+            <Text>Status ticket: {SessaoObj?.uso ? "Disponivel" : "Indisponivel"}</Text>
             <Text style={{ fontSize: 40 }}>{Horario}</Text>
             <Botao fala={'Receber Ticket'} funcao={Ticket} />
+            <Botao fala={'Sair'} funcao={() => { router.push("/Home") }} />
         </View>
     );
 }
@@ -70,5 +96,6 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff',
         alignItems: 'center',
         justifyContent: 'center',
+        gap: 10
     },
 });

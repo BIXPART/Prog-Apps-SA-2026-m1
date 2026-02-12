@@ -1,56 +1,46 @@
-import { View, Text, StyleSheet } from 'react-native';
 import Botao from '@/componentes/Botao';
-import { router, useLocalSearchParams } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+
+type SessaoType = {
+    cod: string;
+    uso: boolean;
+    tipo: string;
+}
 
 export default function Home() {
 
-    const { Sessao } = useLocalSearchParams<{ Sessao: string }>();
+    const [SessaoObj, SetSessaoObj] = useState<SessaoType | null>(null);
 
-    const SessaoObj = JSON.parse(Sessao);
-
-
+    useEffect(() => {
+        async function Receber_dados() {
+            const Sessao = await AsyncStorage.getItem("SessaoAtual")
+            if (Sessao) {
+                const SessaoParse = JSON.parse(Sessao);
+                SetSessaoObj(SessaoParse);
+            }
+        } Receber_dados();
+    }, [])
 
     return (
         <View style={styles.container}>
-            <Text>Olá {SessaoObj.nome}</Text>
+
+            <Text style={{fontSize:50}}>HOME</Text>
+
+            <Text>Sessão atual {SessaoObj?.cod}</Text>
 
             <Botao fala={'Usar Ticket'} funcao={() => {
-                router.push({
-                    pathname: "/UsarTicket",
-                    params: {
-                        Sessao: JSON.stringify({
-                            tipo: "matricula",
-                            cod: SessaoObj.cod,
-                            uso: SessaoObj.uso
-                        })
-                    }
-                })
+                router.push("/UseTicket")
             }} />
             <Botao fala={'Pegar Ticket'} funcao={() => {
-                router.push({
-                    pathname: "/GetTicket",
-                    params: {
-                        Sessao: JSON.stringify({
-                            tipo: "matricula",
-                            cod: SessaoObj.cod,
-                            uso: SessaoObj.uso
-                        })
-                    }
-                })
+                router.push("/GetTicket")
             }
             } />
 
             <Botao fala={'Sair'} funcao={() => {
-                router.push({
-                    pathname: "/",
-                    params: {
-                        Sessao: JSON.stringify({
-                            tipo: "matricula",
-                            cod: SessaoObj.cod,
-                            uso: SessaoObj.uso
-                        })
-                    }
-                })
+                router.push("/")
             }} />
         </View>
     );

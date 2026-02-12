@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, StyleSheet, Text, TextInput, View } from 'react-native';
 import Botao from '../componentes/Botao';
 
 export default function Index() {
@@ -62,21 +62,27 @@ export default function Index() {
 
         const usuario = filtroMat || filtroCod;
 
-        if (usuario) {
-            await AsyncStorage.setItem('Sessao', JSON.stringify(usuario));
-            router.navigate('/Home');
-            return;
+        if (!usuario) {
+            Alert.alert("Matrícula ou código inválido");
+            return
+        } else {
+            try {
+                await AsyncStorage.setItem('SessaoAtual', JSON.stringify(usuario));
+            } catch (error) {
+                Alert.alert(String(error));
+                return;
+            }
+            router.push('/Home');
+            return
+
         }
-
-        Alert.alert("Matrícula ou código inválido");
     }
-
     async function VerificarADM() {
         const filtro = SenhasADM.find(sen => sen.cod === CampoADM);
 
         if (filtro) {
             await AsyncStorage.setItem('Sessao', JSON.stringify(filtro));
-            router.navigate('/Home');
+            router.push('/Home');
             return;
         }
 
@@ -97,14 +103,15 @@ export default function Index() {
 
     return (
         <View style={styles.container}>
-
             <View style={{ flex: 1, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', display: ViwerEST }}>
+                <Text style={{ fontSize: 50, margin: 30 }}>Login Aluno</Text>
                 <TextInput placeholder='matrícula ou código ' onChangeText={(nome) => { SetCampoAl(nome) }} style={{ backgroundColor: 'cyan', height: 50, width: 250, bottom: 15, borderRadius: 15 }}></TextInput>
                 <Botao fala={"Verificar"} funcao={() => { VerificarM_C() }} />
                 <Botao funcao={trocar} fala={'trocar ADM'}></Botao>
             </View>
 
             <View style={{ flex: 1, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', display: ViwerADM }}>
+                <Text style={{ fontSize: 50, margin: 30 }}>Login Adm</Text>
                 <TextInput placeholder='SenhaADM' onChangeText={(senha) => { SetCampoADM(senha) }} style={{ backgroundColor: 'cyan', height: 50, width: 250, bottom: 15, borderRadius: 15 }}></TextInput>
                 <Botao fala={'Verificar'} funcao={VerificarADM} />
                 <Botao fala={"trocar Aluno"} funcao={trocar} />
