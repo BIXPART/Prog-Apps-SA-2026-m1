@@ -9,13 +9,13 @@ export default function Botao(prop) {
         height: 50,
         backgroundColor: 'blue',
         borderRadius: 15,
-        justifyContent: 'center',
+        justifyContent:'center',
         alignItems: 'center',
         margin:5
       }}
       onPress={()=>{prop.funcao()}}
     >
-      <Text style={{ color: 'white', fontSize: 16 }}>
+      <Text style={{ color: 'white', fontSize: 16,textAlign:'center' }}>
         {prop.fala}
       </Text>
     </TouchableOpacity>

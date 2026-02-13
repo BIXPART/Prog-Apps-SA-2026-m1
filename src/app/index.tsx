@@ -7,7 +7,7 @@ import Botao from '../componentes/Botao';
 export default function Index() {
 
 
-    const [Cods] = useState([{ cod: '123', uso: true, tipo: "cod" }, { cod: '321', uso: true, tipo: "cod" }])
+    const [Cods] = useState([{ cod: '123', uso: true, tipo: "cod" }, { cod: '321', uso: true, tipo: "cod" },{ cod: '472', uso: true, tipo: "cod" }])
     useEffect(() => {
         async function inicializar() {
             const dados = await AsyncStorage.getItem('@Cods');
@@ -82,7 +82,7 @@ export default function Index() {
 
         if (filtro) {
             await AsyncStorage.setItem('Sessao', JSON.stringify(filtro));
-            router.push('/Home');
+            router.push('/Admin');
             return;
         }
 
