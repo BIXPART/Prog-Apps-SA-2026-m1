@@ -116,6 +116,7 @@ export default function Index() {
                 <Botao fala={'Verificar'} funcao={VerificarADM} />
                 <Botao fala={"trocar Aluno"} funcao={trocar} />
             </View>
+            <Botao fala="Localização" funcao={()=>{router.push("/")}}/>
         </View>
     );
 }
