@@ -1,253 +1,153 @@
-import Botao from "@/componentes/Botao";
-import { router } from "expo-router";
-import { useEffect, useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import Botao from '@/componentes/Botao';
+import { supabase } from '../lib/supabase';
+import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { createClient } from "@supabase/supabase-js";
-import 'dotenv/config';
-
-const supabase = createClient(
-  process.env.EXPO_PUBLIC_SUPABASE_URL!,
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!
-);
-
-type CodsType = {
-  id?: number;
-  cod: string;
-  uso: boolean;
-  tipo: string;
-};
+type AlunoType = { id: number; nome: string; fk_matricula: number; uso: boolean };
+type CodigoType = { id: number; valor: string; uso: boolean | null };
+type AdminType = { id: number; valor: string };
+type MatriculaType = { id: number; valor: string };
 
 export default function Admin() {
+    const [Alunos, SetAlunos] = useState<AlunoType[]>([]);
+    const [Codigos, SetCodigos] = useState<CodigoType[]>([]);
+    const [Admins, SetAdmins] = useState<AdminType[]>([]);
+    const [Matriculas, SetMatriculas] = useState<MatriculaType[]>([]);
 
-  const [Cods, SetCods] = useState<CodsType[]>([]);
-  const [Matriculas, SetMatriculas] = useState<CodsType[]>([]);
-  const [SenhasADM, SetSenhasADM] = useState<CodsType[]>([]);
+    const [tela, setTela] = useState<'hub' | 'ver' | 'buscar' | 'editar'>('hub');
 
-  const [campArr, SetcampArr] = useState("");
-  const [campObj, SetcampObj] = useState(0);
+    // Campos de edição
+    const [campTabela, SetCampTabela] = useState('');
+    const [campId, SetCampId] = useState<number>(0);
+    const [campValor, SetCampValor] = useState('');
+    const [campUso, SetCampUso] = useState(false);
+    const [campNome, SetCampNome] = useState('');
 
-  const [campCod, SetcampCod] = useState("");
-  const [campUso, SetcampUso] = useState<boolean>(false);
-  const [campTipo, SetcampTipo] = useState("");
+    useEffect(() => {
+        carregarTudo();
+    }, []);
 
-  const [tela, setTela] = useState<"hub" | "buscar" | "editar" | "ver">("hub");
+    async function carregarTudo() {
+        const [{ data: alunos }, { data: codigos }, { data: admins }, { data: matriculas }] = await Promise.all([
+            supabase.from('alunos').select('*'),
+            supabase.from('codigo').select('*'),
+            supabase.from('admin').select('*'),
+            supabase.from('matriculas').select('*'),
+        ]);
 
-
-  async function carregarTudo() {
-
-    const { data: cods } = await supabase
-      .from("cods")
-      .select("*");
-
-    const { data: matriculas } = await supabase
-      .from("matriculas")
-      .select("*");
-
-    const { data: adm } = await supabase
-      .from("senhasadm")
-      .select("*");
-
-    if (cods) SetCods(cods);
-    if (matriculas) SetMatriculas(matriculas);
-    if (adm) SetSenhasADM(adm);
-
-  }
-
-  useEffect(() => {
-    carregarTudo();
-  }, []);
-
-
-  function RetornarCadastros(tipo: number) {
-
-    let lista: CodsType[] = [];
-
-    if (tipo == 1) lista = Cods;
-    else if (tipo == 2) lista = Matriculas;
-    else if (tipo == 3) lista = SenhasADM;
-
-    return JSON.stringify(lista, null, 2);
-
-  }
-
-
-  function pegarArray(): CodsType[] {
-
-    if (campArr === "cod") return [...Cods];
-    if (campArr === "matricula") return [...Matriculas];
-    if (campArr === "adm") return [...SenhasADM];
-
-    return [];
-
-  }
-
-
-  function EncontrarOBj() {
-
-    const arrayAtual = pegarArray();
-
-    if (!arrayAtual[campObj]) {
-      Alert.alert("Índice inválido");
-      return;
+        if (alunos) SetAlunos(alunos);
+        if (codigos) SetCodigos(codigos);
+        if (admins) SetAdmins(admins);
+        if (matriculas) SetMatriculas(matriculas);
     }
 
-    const obj = arrayAtual[campObj];
-
-    SetcampCod(obj.cod);
-    SetcampUso(obj.uso);
-    SetcampTipo(obj.tipo);
-
-    setTela("editar");
-
-  }
-
-
-  async function AlterarObj() {
-
-    const arrayAtual = pegarArray();
-
-    if (!arrayAtual[campObj]) {
-      Alert.alert("Índice inválido");
-      return;
+    function RetornarCadastros() {
+        return (
+            `ALUNOS:\n${JSON.stringify(Alunos, null, 2)}\n\n` +
+            `CÓDIGOS:\n${JSON.stringify(Codigos, null, 2)}\n\n` +
+            `MATRÍCULAS:\n${JSON.stringify(Matriculas, null, 2)}\n\n` +
+            `ADMIN:\n${JSON.stringify(Admins, null, 2)}`
+        );
     }
 
-    const obj = arrayAtual[campObj];
+    function EncontrarObj() {
+        let obj: any = null;
 
-    let tabela = "";
+        if (campTabela === 'alunos') obj = Alunos.find(a => a.id === campId);
+        else if (campTabela === 'codigo') obj = Codigos.find(c => c.id === campId);
+        else if (campTabela === 'admin') obj = Admins.find(a => a.id === campId);
+        else if (campTabela === 'matriculas') obj = Matriculas.find(m => m.id === campId);
 
-    if (campArr === "cod") tabela = "cods";
-    if (campArr === "matricula") tabela = "matriculas";
-    if (campArr === "adm") tabela = "senhasadm";
+        if (!obj) { Alert.alert('ID não encontrado'); return; }
 
-    const { error } = await supabase
-      .from(tabela)
-      .update({
-        cod: campCod,
-        uso: campUso,
-        tipo: campTipo
-      })
-      .eq("id", obj.id);
-
-    if (error) {
-      Alert.alert("Erro ao atualizar");
-      return;
+        SetCampValor(obj.valor ?? '');
+        SetCampUso(obj.uso ?? false);
+        SetCampNome(obj.nome ?? '');
+        setTela('editar');
     }
 
-    Alert.alert("Objeto alterado com sucesso!");
+    async function AlterarObj() {
+        let updateData: any = {};
 
-    await carregarTudo();
+        if (campTabela === 'alunos') updateData = { nome: campNome, uso: campUso };
+        else if (campTabela === 'codigo') updateData = { valor: campValor, uso: campUso };
+        else if (campTabela === 'admin' || campTabela === 'matriculas') updateData = { valor: campValor };
 
-    setTela("hub");
+        const { error } = await supabase.from(campTabela).update(updateData).eq('id', campId);
 
-  }
+        if (error) { Alert.alert('Erro ao salvar: ' + error.message); return; }
 
+        Alert.alert('Alterado com sucesso!');
+        await carregarTudo();
+        setTela('hub');
+    }
 
-  async function LimparStorage() {
+    return (
+        <View style={style.ScreenContainer}>
 
-    await supabase.from("cods").delete().neq("id", 0);
-    await supabase.from("matriculas").delete().neq("id", 0);
-    await supabase.from("senhasadm").delete().neq("id", 0);
+            {/* VER */}
+            <View style={{ display: tela === 'ver' ? 'flex' : 'none' }}>
+                <ScrollView style={{ height: 700 }}>
+                    <Text>{RetornarCadastros()}</Text>
+                </ScrollView>
+                <Botao fala="Alterar Cadastro" funcao={() => setTela('buscar')} />
+                <Botao fala="Voltar" funcao={() => setTela('hub')} />
+            </View>
 
-    Alert.alert("Banco limpo");
+            {/* BUSCAR */}
+            <View style={{ display: tela === 'buscar' ? 'flex' : 'none' }}>
+                <Text>Tabela: alunos | codigo | admin | matriculas</Text>
+                <TextInput
+                    onChangeText={SetCampTabela}
+                    placeholder="Nome da tabela"
+                    style={style.Input}
+                />
+                <TextInput
+                    onChangeText={(t) => SetCampId(Number(t))}
+                    placeholder="ID do registro"
+                    keyboardType="numeric"
+                    style={style.Input}
+                />
+                <Botao fala="Encontrar" funcao={EncontrarObj} />
+                <Botao fala="Cancelar" funcao={() => setTela('ver')} />
+            </View>
 
-    carregarTudo();
+            {/* EDITAR */}
+            <View style={{ display: tela === 'editar' ? 'flex' : 'none' }}>
+                {campTabela === 'alunos' && (
+                    <>
+                        <Text>Nome:</Text>
+                        <TextInput value={campNome} onChangeText={SetCampNome} style={style.Input} />
+                    </>
+                )}
+                {(campTabela === 'codigo' || campTabela === 'admin' || campTabela === 'matriculas') && (
+                    <>
+                        <Text>Valor:</Text>
+                        <TextInput value={campValor} onChangeText={SetCampValor} style={style.Input} />
+                    </>
+                )}
+                {(campTabela === 'alunos' || campTabela === 'codigo') && (
+                    <>
+                        <Text>Uso:</Text>
+                        <Botao fala={campUso ? 'True' : 'False'} funcao={() => SetCampUso(!campUso)} />
+                    </>
+                )}
+                <Botao fala="Salvar Alterações" funcao={AlterarObj} />
+                <Botao fala="Cancelar" funcao={() => setTela('ver')} />
+            </View>
 
-  }
-
-
-  return (
-    <View style={style.ScreenContainer}>
-
-      <View style={{ display: tela === "ver" ? "flex" : "none" }}>
-        <ScrollView style={{ height: 700 }}>
-
-          <Text>Códigos Visitante:{"\n"}{RetornarCadastros(1)}</Text>
-          <Text>Matriculas:{"\n"}{RetornarCadastros(2)}</Text>
-          <Text>Códigos ADM:{"\n"}{RetornarCadastros(3)}</Text>
-
-        </ScrollView>
-
-        <Botao fala="Alterar Cadastro" funcao={() => setTela("buscar")} />
-        <Botao fala="Voltar" funcao={() => setTela("hub")} />
-      </View>
-
-
-      <View style={{ display: tela === "buscar" ? "flex" : "none" }}>
-
-        <Text>Digite qual Array e qual índice deseja modificar</Text>
-
-        <TextInput
-          onChangeText={(texto) => SetcampArr(texto)}
-          placeholder="Array: cod | matricula | adm"
-        />
-
-        <TextInput
-          onChangeText={(texto) => SetcampObj(Number(texto))}
-          placeholder="Índice do objeto"
-        />
-
-        <Botao fala="Encontrar OBJ" funcao={EncontrarOBj} />
-        <Botao fala="Cancelar" funcao={() => setTela("ver")} />
-
-      </View>
-
-
-      <View style={{ display: tela === "editar" ? "flex" : "none" }}>
-
-        <TextInput
-          value={campCod}
-          onChangeText={SetcampCod}
-          style={style.Input}
-          placeholder="Código:string"
-        />
-
-        <Text style={{ marginTop: 10 }}>Uso:</Text>
-
-        <Botao
-          fala={campUso ? "True" : "False"}
-          funcao={() => SetcampUso(!campUso)}
-        />
-
-        <TextInput
-          value={campTipo}
-          onChangeText={SetcampTipo}
-          style={style.Input}
-          placeholder="tipo:string"
-        />
-
-        <Botao fala="Salvar Alterações" funcao={AlterarObj} />
-        <Botao fala="Cancelar" funcao={() => setTela("ver")} />
-
-      </View>
-
-
-      <View style={{ justifyContent: "center", alignItems: "center", display: tela === "hub" ? "flex" : "none" }}>
-
-        <Text style={{ fontSize: 50 }}>Admin Screen</Text>
-
-        <Botao fala="Ver Cadastros" funcao={() => setTela("ver")} />
-        <Botao fala="Limpar Banco" funcao={LimparStorage} />
-        <Botao fala="Sair" funcao={() => { router.navigate("/") }} />
-
-      </View>
-
-    </View>
-  );
+            {/* HUB */}
+            <View style={{ justifyContent: 'center', alignItems: 'center', display: tela === 'hub' ? 'flex' : 'none' }}>
+                <Text style={{ fontSize: 50 }}>Admin Screen</Text>
+                <Botao fala="Ver Cadastros" funcao={() => setTela('ver')} />
+                <Botao fala="Sair" funcao={() => router.navigate('/')} />
+            </View>
+        </View>
+    );
 }
 
-
 const style = StyleSheet.create({
-  ScreenContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center"
-  },
-  Input: {
-    height: 30,
-    width: 300,
-    backgroundColor: "cyan",
-    borderRadius: 5,
-    margin: 2
-  }
+    ScreenContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    Input: { height: 30, width: 300, backgroundColor: 'cyan', borderRadius: 5, margin: 2 },
 });

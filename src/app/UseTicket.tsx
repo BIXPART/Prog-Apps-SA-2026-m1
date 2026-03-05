@@ -1,186 +1,72 @@
-import AsyncStorage from '@react-native-async-storage/async-storage'
-import * as Location from "expo-location"
-import { router } from 'expo-router'
-import { useEffect, useState } from 'react'
-import { Alert, StyleSheet, Text, View } from 'react-native'
-import Botao from '../componentes/Botao'
-
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.EXPO_PUBLIC_SUPABASE_URL!,
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!
-);
+import Botao from '@/componentes/Botao';
+import { supabase } from '../lib/supabase';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 
 type SessaoType = {
-  id?: number
-  cod: string
-  uso: boolean
-  tipo: string
-}
+    cod: string;
+    uso: boolean;
+    tipo: string;
+    aluno_id?: number;
+    codigo_id?: number;
+};
 
 export default function UseTicket() {
+    const { sessao } = useLocalSearchParams<{ sessao: string }>();
+    const [SessaoObj, SetSessaoObj] = useState<SessaoType | null>(sessao ? JSON.parse(sessao) : null);
 
-  const raio = 6371e3
+    async function UsarTicket() {
+        if (!SessaoObj) {
+            Alert.alert('Você não tem um ticket para usar');
+            return;
+        }
 
-  const latitudeAluno = -27.618356
-  const longitudeAluno = -48.664254
+        if (!SessaoObj.uso) {
+            Alert.alert('Você não tem um ticket disponível');
+            return;
+        }
 
-  const [loading, setLoading] = useState(false)
-  const [SessaoObj, SetSessaoObj] = useState<SessaoType | null>(null)
+        // Atualiza no Supabase
+        if (SessaoObj.tipo === 'matricula' && SessaoObj.aluno_id) {
+            const { error } = await supabase
+                .from('alunos')
+                .update({ uso: false })
+                .eq('id', SessaoObj.aluno_id);
 
+            if (error) { Alert.alert('Erro ao usar ticket'); return; }
+        }
 
-  async function getLocation(): Promise<number | null> {
+        if (SessaoObj.tipo === 'cod' && SessaoObj.codigo_id) {
+            const { error } = await supabase
+                .from('codigo')
+                .update({ uso: false })
+                .eq('id', SessaoObj.codigo_id);
 
-    try {
+            if (error) { Alert.alert('Erro ao usar ticket'); return; }
+        }
 
-      setLoading(true)
-
-      const { status } = await Location.requestForegroundPermissionsAsync()
-
-      if (status !== "granted") {
-        return null
-      }
-
-      const currentLocation = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High
-      })
-
-      return calcularDistancia(
-        currentLocation.coords.latitude,
-        currentLocation.coords.longitude
-      )
-
-    } catch {
-      return null
-    } finally {
-      setLoading(false)
+        SetSessaoObj({ ...SessaoObj, uso: false });
+        Alert.alert('Ticket usado com sucesso!');
     }
 
-  }
-
-
-  function calcularDistancia(latitude: number, longitude: number): number {
-
-    const lat1 = latitude * (Math.PI / 180)
-    const lat2 = latitudeAluno * (Math.PI / 180)
-
-    const deltaLat = (latitudeAluno - latitude) * (Math.PI / 180)
-    const deltaLon = (longitudeAluno - longitude) * (Math.PI / 180)
-
-    const a =
-      Math.sin(deltaLat / 2) ** 2 +
-      Math.cos(lat1) *
-      Math.cos(lat2) *
-      Math.sin(deltaLon / 2) ** 2
-
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-
-    return raio * c
-
-  }
-
-
-  useEffect(() => {
-
-    async function Receber_dados() {
-
-      const Sessao = await AsyncStorage.getItem("SessaoAtual")
-
-      if (Sessao) {
-        SetSessaoObj(JSON.parse(Sessao))
-      }
-
-    }
-
-    Receber_dados()
-
-  }, [])
-
-
-
-  async function UsarTicket() {
-
-    const distancia = await getLocation()
-
-    if (distancia === null) {
-      Alert.alert("Não foi possível obter localização.")
-      return
-    }
-
-    if (distancia > 200) {
-      Alert.alert("Você não está dentro do raio permitido.")
-      return
-    }
-
-    if (!SessaoObj) {
-      Alert.alert("Sessão inválida")
-      return
-    }
-
-    if (!SessaoObj.uso) {
-      Alert.alert("Você não tem um ticket disponível.")
-      return
-    }
-
-    let tabela = ""
-
-    if (SessaoObj.tipo === "cod") tabela = "cods"
-    if (SessaoObj.tipo === "matricula") tabela = "matriculas"
-
-    const { error } = await supabase
-      .from(tabela)
-      .update({ uso: false })
-      .eq("id", SessaoObj.id)
-
-    if (error) {
-      Alert.alert("Erro ao usar ticket")
-      return
-    }
-
-    const novaSessao = {
-      ...SessaoObj,
-      uso: false
-    }
-
-    SetSessaoObj(novaSessao)
-
-    await AsyncStorage.setItem("SessaoAtual", JSON.stringify(novaSessao))
-
-    Alert.alert("Ticket Usado")
-
-  }
-
-
-  return (
-
-    <View style={styles.container}>
-
-      <Text style={{ fontSize: 50 }}>Usar Ticket</Text>
-
-      <Text>Olá {SessaoObj?.cod}</Text>
-
-      <Text>Bem vindo</Text>
-
-      <Text>
-        Status ticket: {SessaoObj?.uso ? "Disponível" : "Indisponível"}
-      </Text>
-
-      <Botao fala={'Usar Ticket'} funcao={UsarTicket} />
-      <Botao fala={'Voltar'} funcao={() => router.push("/Home")} />
-
-    </View>
-
-  )
-
+    return (
+        <View style={styles.container}>
+            <Text style={{ fontSize: 50 }}>Usar Ticket</Text>
+            <Text>Olá, {SessaoObj?.cod}</Text>
+            <Text>Bem vindo!</Text>
+            <Text>Status ticket: {SessaoObj?.uso ? 'Disponível' : 'Indisponível'}</Text>
+            <Botao fala="Usar Ticket" funcao={UsarTicket} />
+            <Botao fala="Voltar" funcao={() => router.push({ pathname: '/Home', params: { sessao: JSON.stringify(SessaoObj) } })} />
+        </View>
+    );
 }
 
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    gap: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-})
+    container: {
+        flex: 1,
+        gap: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+});
