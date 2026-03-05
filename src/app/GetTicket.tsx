@@ -1,101 +1,120 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
-import Botao from '../componentes/Botao';
+import Botao from '@/componentes/Botao'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { router } from 'expo-router'
+import { useEffect, useState } from 'react'
+import { Alert, StyleSheet, Text, View } from 'react-native'
+
+import { createClient } from '@supabase/supabase-js'
+import 'dotenv/config'
+
+const supabase = createClient(
+  process.env.EXPO_PUBLIC_SUPABASE_URL!,
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 type SessaoType = {
-    cod: string;
-    uso: boolean;
-    tipo: string;
+  id?: number
+  cod: string
+  uso: boolean
+  tipo: string
 }
 
 export default function GetTicket() {
 
-    const [SessaoObj, SetSessaoObj] = useState<SessaoType | null>(null);
+  const [SessaoObj, SetSessaoObj] = useState<SessaoType | null>(null)
 
-    useEffect(() => {
-        async function Receber_dados() {
-            const Sessao = await AsyncStorage.getItem("SessaoAtual")
-            if (Sessao) {
-                const SessaoParse = JSON.parse(Sessao);
-                SetSessaoObj(SessaoParse);
-            }
-        } Receber_dados();
-    }, [])
+  useEffect(() => {
 
-    useEffect(() => {
-        async function Atualizar_Sessao() {
-            if (SessaoObj) {
-                const SessaoString = JSON.stringify(SessaoObj);
-                await AsyncStorage.setItem("Sessao", SessaoString);
-            }
-        } Atualizar_Sessao();
-    })
+    async function Receber_dados() {
 
-    const [Horario, SetHorario] = useState("");
+      const Sessao = await AsyncStorage.getItem("SessaoAtual")
 
-    useEffect(() => {
-        const intervalo = setInterval(() => {
-            const agora = new Date();
-            const horas = agora.getHours();
-            const minutos = agora.getMinutes();
+      if (Sessao) {
+        SetSessaoObj(JSON.parse(Sessao))
+      }
 
-            SetHorario(`${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}`);
-        }, 1000);
-
-        return () => clearInterval(intervalo);
-    }, []);
-
-    function Ticket() {
-        const agora = new Date();
-        const horas = agora.getHours();
-        const minutos = agora.getMinutes();
-
-        const minutoAtual = horas * 60 + minutos;
-        const inicioRecreio = 9 * 60 + 35;
-        const fimRecreio = 9 * 60 + 55;
-
-        if (minutoAtual < inicioRecreio) {
-            Alert.alert("Não está na Hora do Seu Recreio ainda");
-            return;
-        }
-
-        if (minutoAtual > fimRecreio) {
-            Alert.alert("O seu recreio já passou");
-            return;
-        }
-
-        if (!SessaoObj?.cod) {
-            (true);
-            SetSessaoObj({
-                cod: SessaoObj?.cod || "Desconecido",
-                uso: true,
-                tipo: SessaoObj?.tipo || "matricula",
-            })
-        } else {
-            Alert.alert("Ticket já recebido");
-        }
     }
 
-    return (
-        <View style={styles.container}>
-            <Text style={{ fontSize: 50 }}>Pegar Ticket</Text>
-            <Text>Sessão atual: {SessaoObj?.cod}</Text>
-            <Text>Status ticket: {SessaoObj?.uso ? "Disponivel" : "Indisponivel"}</Text>
-            <Text style={{ fontSize: 40 }}>{Horario}</Text>
-            <Botao fala={'Receber Ticket'} funcao={Ticket} />
-            <Botao fala={'Sair'} funcao={() => { router.push("/Home") }} />
-        </View>
-    );
+    Receber_dados()
+
+  }, [])
+
+
+  async function PegarTicket() {
+
+    if (!SessaoObj) {
+      Alert.alert("Sessão inválida")
+      return
+    }
+
+    if (SessaoObj.uso) {
+      Alert.alert("Você já possui um ticket disponível")
+      return
+    }
+
+    let tabela = ""
+
+    if (SessaoObj.tipo === "cod") tabela = "cods"
+    if (SessaoObj.tipo === "matricula") tabela = "matriculas"
+
+    const { error } = await supabase
+      .from(tabela)
+      .update({ uso: true })
+      .eq("id", SessaoObj.id)
+
+    if (error) {
+      Alert.alert("Erro ao pegar ticket")
+      return
+    }
+
+    const novaSessao = {
+      ...SessaoObj,
+      uso: true
+    }
+
+    SetSessaoObj(novaSessao)
+
+    await AsyncStorage.setItem("SessaoAtual", JSON.stringify(novaSessao))
+
+    Alert.alert("Ticket adquirido com sucesso")
+
+  }
+
+
+  return (
+
+    <View style={styles.container}>
+
+      <Text style={{ fontSize: 50 }}>Get Ticket</Text>
+
+      <Text>Sessão atual {SessaoObj?.cod}</Text>
+
+      <Text>
+        Status ticket: {SessaoObj?.uso ? "Disponível" : "Indisponível"}
+      </Text>
+
+      <Botao
+        fala={'Pegar Ticket'}
+        funcao={PegarTicket}
+      />
+
+      <Botao
+        fala={'Voltar'}
+        funcao={() => router.push("/Home")}
+      />
+
+    </View>
+
+  )
+
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#fff',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 10
-    },
-});
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+    flexDirection: 'column',
+  }
+})

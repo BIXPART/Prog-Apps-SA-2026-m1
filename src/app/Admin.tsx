@@ -1,211 +1,253 @@
 import Botao from "@/componentes/Botao";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
+import { createClient } from "@supabase/supabase-js";
+import 'dotenv/config';
+
+const supabase = createClient(
+  process.env.EXPO_PUBLIC_SUPABASE_URL!,
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!
+);
+
 type CodsType = {
-    cod: string;
-    uso: boolean;
-    tipo: string;
-}
+  id?: number;
+  cod: string;
+  uso: boolean;
+  tipo: string;
+};
 
 export default function Admin() {
 
-    const [Cods, SetCods] = useState<CodsType[]>([]);
-    const [Matriculas, SetMatriculas] = useState<CodsType[]>([]);
-    const [SenhasADM, SetSenhasADM] = useState<CodsType[]>([]);
+  const [Cods, SetCods] = useState<CodsType[]>([]);
+  const [Matriculas, SetMatriculas] = useState<CodsType[]>([]);
+  const [SenhasADM, SetSenhasADM] = useState<CodsType[]>([]);
 
-    const [campArr, SetcampArr] = useState("")
-    const [campObj, SetcampObj] = useState(0)
+  const [campArr, SetcampArr] = useState("");
+  const [campObj, SetcampObj] = useState(0);
 
-    const [campCod, SetcampCod] = useState("")
-    const [campUso, SetcampUso] = useState<boolean>(false)
-    const [campTipo, SetcampTipo] = useState("")
+  const [campCod, SetcampCod] = useState("");
+  const [campUso, SetcampUso] = useState<boolean>(false);
+  const [campTipo, SetcampTipo] = useState("");
 
-    const [tela, setTela] = useState<"hub" | "buscar" | "editar" | "ver">("hub");
+  const [tela, setTela] = useState<"hub" | "buscar" | "editar" | "ver">("hub");
 
 
-    useEffect(() => {
-        async function carregarTudo() {
+  async function carregarTudo() {
 
-            const cods = await AsyncStorage.getItem('@Cods');
-            const matriculas = await AsyncStorage.getItem('@Matrículas');
-            const adm = await AsyncStorage.getItem('@SenhasADM');
+    const { data: cods } = await supabase
+      .from("cods")
+      .select("*");
 
-            if (cods) SetCods(JSON.parse(cods));
-            if (matriculas) SetMatriculas(JSON.parse(matriculas));
-            if (adm) SetSenhasADM(JSON.parse(adm));
-        }
+    const { data: matriculas } = await supabase
+      .from("matriculas")
+      .select("*");
 
-        carregarTudo();
-    }, []);
+    const { data: adm } = await supabase
+      .from("senhasadm")
+      .select("*");
 
-    function RetornarCadastros(tipo: number) {
-        let lista: CodsType[] = [];
+    if (cods) SetCods(cods);
+    if (matriculas) SetMatriculas(matriculas);
+    if (adm) SetSenhasADM(adm);
 
-        if (tipo == 1) lista = Cods;
-        else if (tipo == 2) lista = Matriculas;
-        else if (tipo == 3) lista = SenhasADM;
+  }
 
-        return JSON.stringify(lista, null, 2);
+  useEffect(() => {
+    carregarTudo();
+  }, []);
+
+
+  function RetornarCadastros(tipo: number) {
+
+    let lista: CodsType[] = [];
+
+    if (tipo == 1) lista = Cods;
+    else if (tipo == 2) lista = Matriculas;
+    else if (tipo == 3) lista = SenhasADM;
+
+    return JSON.stringify(lista, null, 2);
+
+  }
+
+
+  function pegarArray(): CodsType[] {
+
+    if (campArr === "cod") return [...Cods];
+    if (campArr === "matricula") return [...Matriculas];
+    if (campArr === "adm") return [...SenhasADM];
+
+    return [];
+
+  }
+
+
+  function EncontrarOBj() {
+
+    const arrayAtual = pegarArray();
+
+    if (!arrayAtual[campObj]) {
+      Alert.alert("Índice inválido");
+      return;
     }
 
-    async function LimparStorage() {
-        await AsyncStorage.clear();
-        Alert.alert("é nessesario refazer o Login para ter efeito")
-        console.log("é nessesario refazer o Login para ter efeito")
+    const obj = arrayAtual[campObj];
+
+    SetcampCod(obj.cod);
+    SetcampUso(obj.uso);
+    SetcampTipo(obj.tipo);
+
+    setTela("editar");
+
+  }
+
+
+  async function AlterarObj() {
+
+    const arrayAtual = pegarArray();
+
+    if (!arrayAtual[campObj]) {
+      Alert.alert("Índice inválido");
+      return;
     }
 
-    function pegarArray(): CodsType[] {
-        if (campArr === "cod") return [...Cods];
-        if (campArr === "matricula") return [...Matriculas];
-        if (campArr === "adm") return [...SenhasADM];
-        return [];
+    const obj = arrayAtual[campObj];
+
+    let tabela = "";
+
+    if (campArr === "cod") tabela = "cods";
+    if (campArr === "matricula") tabela = "matriculas";
+    if (campArr === "adm") tabela = "senhasadm";
+
+    const { error } = await supabase
+      .from(tabela)
+      .update({
+        cod: campCod,
+        uso: campUso,
+        tipo: campTipo
+      })
+      .eq("id", obj.id);
+
+    if (error) {
+      Alert.alert("Erro ao atualizar");
+      return;
     }
 
-    function EncontrarOBj() {
-        const arrayAtual = pegarArray();
+    Alert.alert("Objeto alterado com sucesso!");
 
-        if (!arrayAtual[campObj]) {
-            Alert.alert("Índice inválido");
-            return;
-        }
+    await carregarTudo();
 
-        const obj = arrayAtual[campObj];
+    setTela("hub");
 
-        // Preenche os campos automaticamente
-        SetcampCod(obj.cod);
-        SetcampUso(obj.uso);
-        SetcampTipo(obj.tipo);
+  }
 
-        // Vai para tela de edição
-        setTela("editar");
-    }
 
-    async function salvarArray(novoArray: CodsType[]) {
+  async function LimparStorage() {
 
-        if (campArr === "cod") {
-            SetCods(novoArray);
-            await AsyncStorage.setItem('@Cods', JSON.stringify(novoArray));
-        }
+    await supabase.from("cods").delete().neq("id", 0);
+    await supabase.from("matriculas").delete().neq("id", 0);
+    await supabase.from("senhasadm").delete().neq("id", 0);
 
-        if (campArr === "matricula") {
-            SetMatriculas(novoArray);
-            await AsyncStorage.setItem('@Matrículas', JSON.stringify(novoArray));
-        }
+    Alert.alert("Banco limpo");
 
-        if (campArr === "adm") {
-            SetSenhasADM(novoArray);
-            await AsyncStorage.setItem('@SenhasADM', JSON.stringify(novoArray));
-        }
-    }
+    carregarTudo();
 
-    async function AlterarObj() {
+  }
 
-        const arrayAtual = pegarArray();
 
-        if (!arrayAtual[campObj]) {
-            Alert.alert("Índice inválido");
-            return;
-        }
+  return (
+    <View style={style.ScreenContainer}>
 
-        const novoObjeto: CodsType = {
-            cod: campCod,
-            uso: campUso ?? false,
-            tipo: campTipo
-        };
+      <View style={{ display: tela === "ver" ? "flex" : "none" }}>
+        <ScrollView style={{ height: 700 }}>
 
-        const novoArray = arrayAtual.map((item, index) =>
-            index === campObj ? novoObjeto : item
-        );
+          <Text>Códigos Visitante:{"\n"}{RetornarCadastros(1)}</Text>
+          <Text>Matriculas:{"\n"}{RetornarCadastros(2)}</Text>
+          <Text>Códigos ADM:{"\n"}{RetornarCadastros(3)}</Text>
 
-        await salvarArray(novoArray);
+        </ScrollView>
 
-        Alert.alert("Objeto alterado com sucesso!");
+        <Botao fala="Alterar Cadastro" funcao={() => setTela("buscar")} />
+        <Botao fala="Voltar" funcao={() => setTela("hub")} />
+      </View>
 
-        setTela("hub"); // 👈 volta pro menu
-    }
 
-    return (
-        <View style={style.ScreenContainer}>
-            <View style={{ display: tela === "ver" ? "flex" : "none" }}>
-                <ScrollView style={{ height: 700 }}>
-                    <Text>Códigos Visitante:{"\n"}{RetornarCadastros(1)}</Text>
-                    <Text>Matriculas:{"\n"}{RetornarCadastros(2)}</Text>
-                    <Text>Códigos ADM:{"\n"}{RetornarCadastros(3)}</Text>
-                </ScrollView>
+      <View style={{ display: tela === "buscar" ? "flex" : "none" }}>
 
-                <Botao fala="Alterar Cadastro" funcao={() => setTela("buscar")} />
-                <Botao fala="Voltar" funcao={() => setTela("hub")} />
-            </View>
+        <Text>Digite qual Array e qual índice deseja modificar</Text>
 
-            <View style={{ display: tela === "buscar" ? "flex" : "none" }}>
-                <Text>Digite qual Array e qual índice deseja modificar</Text>
+        <TextInput
+          onChangeText={(texto) => SetcampArr(texto)}
+          placeholder="Array: cod | matricula | adm"
+        />
 
-                <TextInput
-                    onChangeText={(texto) => SetcampArr(texto)}
-                    placeholder="Array: cod | matricula | adm"
-                />
+        <TextInput
+          onChangeText={(texto) => SetcampObj(Number(texto))}
+          placeholder="Índice do objeto"
+        />
 
-                <TextInput
-                    onChangeText={(texto) => SetcampObj(Number(texto))}
-                    placeholder="Índice do objeto"
-                />
+        <Botao fala="Encontrar OBJ" funcao={EncontrarOBj} />
+        <Botao fala="Cancelar" funcao={() => setTela("ver")} />
 
-                <Botao fala="Encontrar OBJ" funcao={EncontrarOBj} />
-                <Botao fala="Cancelar" funcao={() => setTela("ver")} />
-            </View>
+      </View>
 
-            <View style={{ display: tela === "editar" ? "flex" : "none" }}>
-                <TextInput
-                    value={campCod}
-                    onChangeText={SetcampCod}
-                    style={style.Input}
-                    placeholder="Código:string"
-                />
 
-                <Text style={{ marginTop: 10 }}>Uso:</Text>
+      <View style={{ display: tela === "editar" ? "flex" : "none" }}>
 
-                <Botao
-                    fala={campUso ? "True" : "False"}
-                    funcao={() => SetcampUso(!campUso)}
-                />
+        <TextInput
+          value={campCod}
+          onChangeText={SetcampCod}
+          style={style.Input}
+          placeholder="Código:string"
+        />
 
-                <TextInput
-                    value={campTipo}
-                    onChangeText={SetcampTipo}
-                    style={style.Input}
-                    placeholder="tipo:string"
-                />
+        <Text style={{ marginTop: 10 }}>Uso:</Text>
 
-                <Botao fala="Salvar Alterações" funcao={AlterarObj} />
-                <Botao fala="Cancelar" funcao={() => setTela("ver")} />
-            </View>
+        <Botao
+          fala={campUso ? "True" : "False"}
+          funcao={() => SetcampUso(!campUso)}
+        />
 
-            <View style={{ justifyContent: "center", alignItems: "center", display: tela === "hub" ? "flex" : "none" }}>
+        <TextInput
+          value={campTipo}
+          onChangeText={SetcampTipo}
+          style={style.Input}
+          placeholder="tipo:string"
+        />
 
-                <Text style={{ fontSize: 50 }}>Admin Screen</Text>
+        <Botao fala="Salvar Alterações" funcao={AlterarObj} />
+        <Botao fala="Cancelar" funcao={() => setTela("ver")} />
 
-                <Botao fala="Ver Cadastros" funcao={() => setTela("ver")} />
-                <Botao fala="Limpar AsyncStorage" funcao={LimparStorage} />
-                <Botao fala="Sair" funcao={() => { router.navigate("/") }} />
-            </View>
-        </View>
-    )
+      </View>
+
+
+      <View style={{ justifyContent: "center", alignItems: "center", display: tela === "hub" ? "flex" : "none" }}>
+
+        <Text style={{ fontSize: 50 }}>Admin Screen</Text>
+
+        <Botao fala="Ver Cadastros" funcao={() => setTela("ver")} />
+        <Botao fala="Limpar Banco" funcao={LimparStorage} />
+        <Botao fala="Sair" funcao={() => { router.navigate("/") }} />
+
+      </View>
+
+    </View>
+  );
 }
 
+
 const style = StyleSheet.create({
-    ScreenContainer: {
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center"
-    },
-    Input: {
-        height: 30,
-        width: 300,
-        backgroundColor: 'cyan',
-        borderRadius: 5,
-        margin: 2
-    }
-})
+  ScreenContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  Input: {
+    height: 30,
+    width: 300,
+    backgroundColor: "cyan",
+    borderRadius: 5,
+    margin: 2
+  }
+});
