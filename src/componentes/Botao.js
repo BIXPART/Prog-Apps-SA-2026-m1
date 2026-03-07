@@ -8,10 +8,10 @@ export default function Botao(prop) {
         width: 100,
         height: 50,
         backgroundColor: 'blue',
-        borderRadius: 15,
+        borderRadius: 5,
         justifyContent:'center',
         alignItems: 'center',
-        margin:5
+        marginTop:5
       }}
       onPress={()=>{prop.funcao()}}
     >

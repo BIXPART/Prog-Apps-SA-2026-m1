@@ -1,8 +1,8 @@
-import { supabase } from '../lib/supabase';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, StyleSheet, Text, TextInput, View } from 'react-native';
 import Botao from '../componentes/Botao';
+import { supabase } from '../lib/supabase';
 
 export default function Index() {
     const [CampoAl, SetCampoAl] = useState('');
